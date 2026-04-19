@@ -13,6 +13,7 @@ const S = {
   msg:          null,   // { type: 'success'|'error'|'info', text }
   loading:      false,
   loginTab:     'token', // 'token' | 'setup'
+  setupToken:   null,   // plain token shown once after first-time setup
 };
 
 // ─── API client ───────────────────────────────────────────────────────────────
@@ -68,6 +69,32 @@ function renderMsg() {
 
 // ─── Login / Setup view ───────────────────────────────────────────────────────
 function renderLogin() {
+  // After setup: show a dedicated token-reveal screen the user must dismiss.
+  if (S.setupToken) {
+    return `
+<div class="login-wrap">
+  <div class="login-card">
+    <div class="login-logo">Bilancio</div>
+    <div class="login-sub">Account created — save your token</div>
+    <div class="alert alert-info" style="margin-bottom:16px">
+      This token is shown <strong>once only</strong>. Copy it before continuing.
+    </div>
+    <div class="form-group">
+      <label>Your API token</label>
+      <div style="display:flex;gap:6px">
+        <input type="text" id="token-reveal" value="${esc(S.setupToken)}" readonly
+          style="font-family:var(--font-mono);font-size:12px;flex:1" onclick="this.select()">
+        <button class="btn btn-secondary" onclick="copyToken()">Copy</button>
+      </div>
+    </div>
+    <div id="copy-confirm" style="font-size:12px;color:var(--success);min-height:18px;margin-bottom:12px"></div>
+    <button class="btn btn-primary" style="width:100%" onclick="continueFromSetup()">
+      I've saved my token — continue →
+    </button>
+  </div>
+</div>`;
+  }
+
   const tokenTab = S.loginTab === 'token';
   return `
 <div class="login-wrap">
@@ -334,6 +361,16 @@ function render() {
 // ─── Auth actions ─────────────────────────────────────────────────────────────
 function setLoginTab(tab) { S.loginTab = tab; S.msg = null; render(); }
 
+function copyToken() {
+  const el = document.getElementById('token-reveal');
+  if (!el) return;
+  el.select();
+  navigator.clipboard.writeText(el.value).then(() => {
+    const confirm = document.getElementById('copy-confirm');
+    if (confirm) confirm.textContent = '✓ Copied to clipboard';
+  });
+}
+
 async function doLogin() {
   const t = document.getElementById('inp-token')?.value.trim();
   if (!t) return;
@@ -355,13 +392,26 @@ async function doSetup() {
   if (!email || !name) { flash('error', 'Email and display name are required.'); return; }
   try {
     const data = await api('POST', '/setup', { email, display_name: name });
-    S.token = data.token;
-    localStorage.setItem('bilancio_token', S.token);
+    // Store token in state but don't transition to app yet — show the
+    // token reveal screen first so the user has time to copy it.
+    S.setupToken = data.token;
+    render();
+  } catch(e) {
+    flash('error', e.message);
+  }
+}
+
+async function continueFromSetup() {
+  S.token = S.setupToken;
+  S.setupToken = null;
+  localStorage.setItem('bilancio_token', S.token);
+  try {
     S.user = await api('GET', '/me');
-    flash('success', `Account created! Token: ${data.token} — save this, it won't be shown again.`);
     await loadAccounts();
     render();
   } catch(e) {
+    S.token = '';
+    localStorage.removeItem('bilancio_token');
     flash('error', e.message);
   }
 }
@@ -440,7 +490,7 @@ async function setTxFilter() {
   await loadTransactions();
 }
 
-function startEditCat(txId, el) {
+function startEditCat(txId, _el) {
   const cell = document.getElementById(`cat-cell-${txId}`);
   const cur  = S.transactions.find(t => t.id === txId);
   cell.innerHTML = `
