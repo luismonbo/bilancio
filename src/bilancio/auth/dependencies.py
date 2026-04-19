@@ -46,9 +46,9 @@ async def _lookup_user(raw_token: str, db: AsyncSession) -> User | None:
 
     for api_token in active_tokens:
         if verify_token(raw_token, api_token.token_hash):
+            user_id = api_token.user_id
             api_token.last_used_at = datetime.now(timezone.utc)
             await db.commit()
-            await db.refresh(api_token)
-            return api_token.user
+            return await db.get(User, user_id)
 
     return None
