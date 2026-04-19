@@ -1,0 +1,52 @@
+# Deploy — runs on push to main after CI passes
+# Builds Docker image, pushes to ACR, updates Container App revision.
+# No manual approval gates. No staging environment.
+# Azure auth via OIDC federated credentials — no secrets stored in GitHub.
+# See infra/README.md for OIDC setup instructions.
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  id-token: write   # required for OIDC token request
+  contents: read
+
+env:
+  RESOURCE_GROUP: rg-bilancio-prod
+  CONTAINER_APP_NAME: bilancio
+  # Set these as GitHub Actions variables (not secrets):
+  # AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID, ACR_NAME
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    needs: []  # depends on CI passing (use branch protection rules, not explicit needs)
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to Azure (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and push image to ACR
+        run: |
+          IMAGE="${{ vars.ACR_NAME }}.azurecr.io/bilancio:${{ github.sha }}"
+          az acr build \
+            --registry ${{ vars.ACR_NAME }} \
+            --image bilancio:${{ github.sha }} \
+            --image bilancio:latest \
+            .
+
+      - name: Update Container App revision
+        run: |
+          IMAGE="${{ vars.ACR_NAME }}.azurecr.io/bilancio:${{ github.sha }}"
+          az containerapp update \
+            --name $CONTAINER_APP_NAME \
+            --resource-group $RESOURCE_GROUP \
+            --image $IMAGE
