@@ -38,7 +38,10 @@ app.include_router(rules_router)
 # Frontend — serve index.html at / and static assets at /static/*
 @app.get("/", include_in_schema=False)
 async def serve_ui() -> FileResponse:
-    return FileResponse(_STATIC_DIR / "index.html")
+    return FileResponse(
+        _STATIC_DIR / "index.html",
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+    )
 
 
 app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
