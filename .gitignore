@@ -46,6 +46,9 @@ uploads/
 .DS_Store
 Thumbs.db
 
+# ── Personal dev scripts (local tooling, not for the repo) ───────────────────
+scripts/
+
 # ── Claude Code project instructions (personal workflow, not for public repos) ─
 CLAUDE.md
 
