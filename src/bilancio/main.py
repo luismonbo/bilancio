@@ -5,6 +5,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from bilancio.api.accounts import router as accounts_router
+from bilancio.api.dashboard import router as dashboard_router
 from bilancio.api.health import router as health_router
 from bilancio.api.imports import router as imports_router
 from bilancio.api.me import router as me_router
@@ -33,6 +34,7 @@ app.include_router(accounts_router)
 app.include_router(imports_router)
 app.include_router(transactions_router)
 app.include_router(rules_router)
+app.include_router(dashboard_router)
 
 
 # Frontend — serve index.html at / and static assets at /static/*
