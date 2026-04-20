@@ -2,18 +2,20 @@
 
 // ─── State ────────────────────────────────────────────────────────────────────
 const S = {
-  token:        localStorage.getItem('bilancio_token') || '',
-  user:         null,
-  view:         'accounts',   // 'accounts' | 'account' | 'rules'
-  accounts:     [],
-  account:      null,
-  transactions: [],
-  txFilter:     { needs_review: false, account_id: null },
-  rules:        [],
-  msg:          null,   // { type: 'success'|'error'|'info', text }
-  loading:      false,
-  loginTab:     'token', // 'token' | 'setup'
-  setupToken:   null,   // plain token shown once after first-time setup
+  token:          localStorage.getItem('bilancio_token') || '',
+  user:           null,
+  view:           'dashboard',  // 'accounts' | 'account' | 'rules' | 'dashboard'
+  accounts:       [],
+  account:        null,
+  transactions:   [],
+  txFilter:       { needs_review: false, account_id: null },
+  rules:          [],
+  dashboardData:  null,
+  dashboardMonth: (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; })(),
+  msg:            null,   // { type: 'success'|'error'|'info', text }
+  loading:        false,
+  loginTab:       'token', // 'token' | 'setup'
+  setupToken:     null,   // plain token shown once after first-time setup
 };
 
 // ─── API client ───────────────────────────────────────────────────────────────
@@ -53,6 +55,11 @@ function fmtDate(iso) {
 function esc(s) {
   if (s == null) return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function formatMonth(yyyyMm) {
+  const [y, m] = yyyyMm.split('-').map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 }
 
 function flash(type, text) {
@@ -258,6 +265,107 @@ ${renderMsg()}
 </div>`;
 }
 
+// ─── Dashboard view ───────────────────────────────────────────────────────────
+function renderDashboard() {
+  const d = S.dashboardData;
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const isCurrentMonth = S.dashboardMonth === currentMonth;
+
+  const monthNav = `
+<div class="dash-month-nav">
+  <button class="btn btn-ghost btn-sm" onclick="prevMonth()">‹</button>
+  <span class="dash-month-label">${esc(formatMonth(S.dashboardMonth))}</span>
+  <button class="btn btn-ghost btn-sm" onclick="nextMonth()" ${isCurrentMonth ? 'disabled' : ''}>›</button>
+</div>`;
+
+  if (!d) return `<div class="page-header"><h1>Dashboard</h1></div>${monthNav}<div class="loading">Loading…</div>`;
+
+  const netCls = d.net >= 0 ? 'amount-pos' : 'amount-neg';
+
+  const summaryCards = `
+<div class="dash-summary">
+  <div class="dash-card dash-card-in">
+    <div class="dash-card-label">Inflows</div>
+    <div class="dash-card-amount amount-pos">+${Math.abs(d.total_in).toFixed(2)}</div>
+  </div>
+  <div class="dash-card dash-card-out">
+    <div class="dash-card-label">Outflows</div>
+    <div class="dash-card-amount amount-neg">−${Math.abs(d.total_out).toFixed(2)}</div>
+  </div>
+  <div class="dash-card dash-card-net">
+    <div class="dash-card-label">Net</div>
+    <div class="dash-card-amount ${netCls}">${d.net >= 0 ? '+' : '−'}${Math.abs(d.net).toFixed(2)}</div>
+  </div>
+</div>`;
+
+  const allUncategorised = d.category_breakdown.length === 1
+    && d.category_breakdown[0].category === 'Uncategorised';
+
+  const catRows = d.category_breakdown.map(c => `
+<tr>
+  <td>${esc(c.category)}</td>
+  <td class="amount-neg" style="text-align:right">−${Math.abs(c.amount).toFixed(2)}</td>
+  <td style="text-align:right">
+    <div class="pct-bar-wrap">
+      <div class="pct-bar" style="width:${Math.min(c.pct,100)}%"></div>
+      <span>${c.pct.toFixed(1)}%</span>
+    </div>
+  </td>
+</tr>`).join('');
+
+  const catTable = allUncategorised
+    ? `<div class="empty"><strong>No categories yet</strong>Set up rules or manually assign categories in Accounts to see a breakdown here.</div>`
+    : d.category_breakdown.length
+    ? `<div class="table-wrap">
+  <table>
+    <thead><tr><th>Category</th><th style="text-align:right">Amount</th><th style="text-align:right">% of spend</th></tr></thead>
+    <tbody>${catRows}</tbody>
+  </table>
+</div>`
+    : `<div class="empty"><strong>No outflows</strong>No spending recorded this month.</div>`;
+
+  const merchantRows = d.top_merchants.map(m => `
+<tr>
+  <td><span class="merchant-name" title="${esc(m.merchant)}">${esc(m.merchant)}</span></td>
+  <td class="amount-neg" style="text-align:right;white-space:nowrap">−${Math.abs(m.amount).toFixed(2)}</td>
+  <td style="text-align:right">${m.count}</td>
+</tr>`).join('');
+
+  const merchantTable = d.top_merchants.length ? `
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Merchant</th><th style="text-align:right">Amount</th><th style="text-align:right">Transactions</th></tr></thead>
+    <tbody>${merchantRows}</tbody>
+  </table>
+</div>` : `<div class="empty"><strong>No merchant data</strong>No spending recorded this month.</div>`;
+
+  const reviewBadge = d.needs_review_count > 0 ? `
+<div class="alert alert-info" style="margin-bottom:20px">
+  <strong>${d.needs_review_count}</strong> transaction${d.needs_review_count !== 1 ? 's' : ''} need a category —
+  <a href="#" onclick="showAccounts();return false">go to Accounts to categorise them</a>.
+</div>` : '';
+
+  return `
+<div class="page-header">
+  <h1>Dashboard</h1>
+</div>
+${renderMsg()}
+${monthNav}
+${reviewBadge}
+${summaryCards}
+<div class="dash-grid">
+  <div class="card">
+    <div class="card-header"><h2>Spending by category</h2></div>
+    <div class="card-body" style="padding:0">${catTable}</div>
+  </div>
+  <div class="card">
+    <div class="card-header"><h2>Top merchants</h2></div>
+    <div class="card-body" style="padding:0">${merchantTable}</div>
+  </div>
+</div>`;
+}
+
 // ─── Rules view ───────────────────────────────────────────────────────────────
 function renderRules() {
   const rows = S.rules.map(r => `
@@ -340,6 +448,7 @@ function renderApp() {
   <nav class="header-nav">
     <a href="#" onclick="showAccounts();return false" class="${navAccActive ? 'active' : ''}">Accounts</a>
     <a href="#" onclick="showRules();return false" class="${S.view === 'rules' ? 'active' : ''}">Rules</a>
+    <a href="#" onclick="showDashboard();return false" class="${S.view === 'dashboard' ? 'active' : ''}">Dashboard</a>
   </nav>
   <div class="header-user">
     <span>${esc(S.user?.email || '')}</span>
@@ -350,6 +459,7 @@ function renderApp() {
   ${S.view === 'accounts'  ? renderAccounts()      : ''}
   ${S.view === 'account'   ? renderAccountDetail() : ''}
   ${S.view === 'rules'     ? renderRules()         : ''}
+  ${S.view === 'dashboard' ? renderDashboard()     : ''}
 </main>`;
 }
 
@@ -378,8 +488,7 @@ async function doLogin() {
   try {
     S.user = await api('GET', '/me');
     localStorage.setItem('bilancio_token', t);
-    await loadAccounts();
-    render();
+    await loadDashboard();
   } catch {
     S.token = '';
     flash('error', 'Invalid token. Check it and try again.');
@@ -407,8 +516,7 @@ async function continueFromSetup() {
   localStorage.setItem('bilancio_token', S.token);
   try {
     S.user = await api('GET', '/me');
-    await loadAccounts();
-    render();
+    await loadDashboard();
   } catch(e) {
     S.token = '';
     localStorage.removeItem('bilancio_token');
@@ -431,6 +539,38 @@ async function showAccounts() {
 async function showRules() {
   S.view = 'rules';
   await loadRules();
+}
+
+async function showDashboard() {
+  S.view = 'dashboard';
+  S.dashboardData = null;
+  render();
+  await loadDashboard();
+}
+
+async function loadDashboard() {
+  try {
+    S.dashboardData = await api('GET', `/dashboard?month=${S.dashboardMonth}`);
+    render();
+  } catch(e) { flash('error', e.message); }
+}
+
+function prevMonth() {
+  const [y, m] = S.dashboardMonth.split('-').map(Number);
+  const d = new Date(y, m - 2, 1);
+  S.dashboardMonth = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  S.dashboardData = null;
+  render();
+  loadDashboard();
+}
+
+function nextMonth() {
+  const [y, m] = S.dashboardMonth.split('-').map(Number);
+  const d = new Date(y, m, 1);
+  S.dashboardMonth = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  S.dashboardData = null;
+  render();
+  loadDashboard();
 }
 
 async function openAccount(id) {
@@ -586,7 +726,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (S.token) {
     try {
       S.user = await api('GET', '/me');
-      await loadAccounts();
+      await loadDashboard();
     } catch {
       S.token = '';
       localStorage.removeItem('bilancio_token');
