@@ -157,7 +157,7 @@ class MediobancaPremierParser:
         if file_path.suffix.lower() != ".xlsx":
             return False
         try:
-            wb = openpyxl.load_workbook(file_path, read_only=True, data_only=True)
+            wb = openpyxl.load_workbook(file_path, data_only=True)
             ws = wb.active
             if ws is None:
                 return False
@@ -175,7 +175,7 @@ class MediobancaPremierParser:
 
     def parse(self, file_path: Path, account_id: int) -> list[ParsedTransaction]:
         """Parse all transactions from the file. Skips header and footer rows."""
-        wb = openpyxl.load_workbook(file_path, read_only=True, data_only=True)
+        wb = openpyxl.load_workbook(file_path, data_only=True)
         ws = wb.active
         if ws is None:
             return []
