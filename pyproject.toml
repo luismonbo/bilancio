@@ -26,6 +26,8 @@ dev = [
     "ruff",
     "mypy",
     "sqlalchemy[mypy]",
+    "types-pyyaml>=6.0.12.20260408",
+    "types-openpyxl>=3.1.5.20260408",
 ]
 
 [build-system]
@@ -49,6 +51,10 @@ line-length = 88
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = [
+    "B008",  # Depends() in function defaults is the FastAPI idiom
+    "E501",  # line length enforced by ruff format, not lint
+]
 
 [tool.mypy]
 strict = true

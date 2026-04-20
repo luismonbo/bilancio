@@ -30,7 +30,7 @@ Known transaction type prefixes (from Tipologia):
 
 import hashlib
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import openpyxl
@@ -45,20 +45,28 @@ _COL_ENTRATE = 4
 _COL_USCITE = 5
 _COL_CURRENCY = 6
 
-_HEADER_ROW_IDX = 14   # 0-based; spreadsheet row 15 with column names
-_DATA_START_IDX = 15   # 0-based; spreadsheet row 16, first data row
+_HEADER_ROW_IDX = 14  # 0-based; spreadsheet row 15 with column names
+_DATA_START_IDX = 15  # 0-based; spreadsheet row 16, first data row
 
 _DATE_FMT = "%d/%m/%Y"
 
 # Detection markers
-_MARKER_CELL_COL = 1   # column B (0-based)
+_MARKER_CELL_COL = 1  # column B (0-based)
 _MARKER_VALUE = "LISTA MOVIMENTI"
-_EXPECTED_HEADERS = ("Data contabile", "Data valuta", "Tipologia", "Entrate", "Uscite", "Divisa")
+_EXPECTED_HEADERS = (
+    "Data contabile",
+    "Data valuta",
+    "Tipologia",
+    "Entrate",
+    "Uscite",
+    "Divisa",
+)
 
 
 # ---------------------------------------------------------------------------
 # Merchant extraction
 # ---------------------------------------------------------------------------
+
 
 def _extract_type_and_merchant(tipologia: str) -> tuple[str, str | None]:
     """Return (transaction_type, merchant_clean) from a raw Tipologia string."""
@@ -121,6 +129,7 @@ def _extract_type_and_merchant(tipologia: str) -> tuple[str, str | None]:
 # Hash
 # ---------------------------------------------------------------------------
 
+
 def _make_hash(value_date: datetime, amount: float, description_raw: str) -> str:
     """Stable SHA-256 hash for dedup. Does not include account_id (uniqueness
     is enforced by the (account_id, hash) DB constraint)."""
@@ -132,13 +141,14 @@ def _make_hash(value_date: datetime, amount: float, description_raw: str) -> str
 # Date parsing
 # ---------------------------------------------------------------------------
 
+
 def _parse_date(raw: object) -> datetime | None:
     if not raw or raw == "":
         return None
     if isinstance(raw, datetime):
-        return raw.replace(tzinfo=timezone.utc)
+        return raw.replace(tzinfo=UTC)
     try:
-        return datetime.strptime(str(raw), _DATE_FMT).replace(tzinfo=timezone.utc)
+        return datetime.strptime(str(raw), _DATE_FMT).replace(tzinfo=UTC)
     except ValueError:
         return None
 
@@ -146,6 +156,7 @@ def _parse_date(raw: object) -> datetime | None:
 # ---------------------------------------------------------------------------
 # Parser
 # ---------------------------------------------------------------------------
+
 
 class MediobancaPremierParser:
     bank_name: str = "Mediobanca Premier"
@@ -203,7 +214,9 @@ class MediobancaPremierParser:
 
             currency = str(row[_COL_CURRENCY]) if row[_COL_CURRENCY] else "EUR"
             description_raw = str(tipologia)
-            transaction_type, merchant_clean = _extract_type_and_merchant(description_raw)
+            transaction_type, merchant_clean = _extract_type_and_merchant(
+                description_raw
+            )
 
             results.append(
                 ParsedTransaction(
@@ -225,4 +238,4 @@ class MediobancaPremierParser:
 
 
 # Ensure the class satisfies the Protocol at import time
-_: BankParser = MediobancaPremierParser()  # type: ignore[assignment]
+_: BankParser = MediobancaPremierParser()

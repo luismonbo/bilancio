@@ -1,8 +1,6 @@
 """Integration tests for /rules API routes."""
 
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
-
 
 # ---------------------------------------------------------------------------
 # GET /rules
@@ -40,9 +38,7 @@ async def test_list_rules_returns_created(
 # ---------------------------------------------------------------------------
 
 
-async def test_create_rule_returns_201(
-    auth_client: AsyncClient, authed: tuple
-) -> None:
+async def test_create_rule_returns_201(auth_client: AsyncClient, authed: tuple) -> None:
     _, headers = authed
     response = await auth_client.post(
         "/rules",
@@ -178,7 +174,11 @@ async def test_export_rules_returns_yaml(
     _, headers = authed
     await auth_client.post(
         "/rules",
-        json={"pattern": "Trenitalia", "pattern_type": "starts_with", "category": "Transport"},
+        json={
+            "pattern": "Trenitalia",
+            "pattern_type": "starts_with",
+            "category": "Transport",
+        },
         headers=headers,
     )
 
@@ -218,12 +218,7 @@ async def test_import_rules_invalid_pattern_type_returns_422(
     auth_client: AsyncClient, authed: tuple
 ) -> None:
     _, headers = authed
-    bad_yaml = (
-        "rules:\n"
-        "  - pattern: X\n"
-        "    pattern_type: fuzzy\n"
-        "    category: Y\n"
-    )
+    bad_yaml = "rules:\n  - pattern: X\n    pattern_type: fuzzy\n    category: Y\n"
     response = await auth_client.post(
         "/rules/import",
         content=bad_yaml,

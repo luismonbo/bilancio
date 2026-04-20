@@ -1,6 +1,6 @@
 """Integration tests for AccountService."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import select
@@ -11,7 +11,7 @@ from bilancio.storage.models import AuditLog, User
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 async def _make_user(db: AsyncSession, email: str) -> User:
@@ -31,7 +31,9 @@ async def test_create_account(db: AsyncSession) -> None:
     user = await _make_user(db, "acc_create@example.com")
     svc = AccountService(db)
 
-    account = await svc.create(user_id=user.id, name="Checking", bank="Mediobanca Premier")
+    account = await svc.create(
+        user_id=user.id, name="Checking", bank="Mediobanca Premier"
+    )
 
     assert account.id is not None
     assert account.name == "Checking"
@@ -64,8 +66,10 @@ async def test_create_account_writes_audit_log(db: AsyncSession) -> None:
     await svc.create(user_id=user.id, name="A", bank="B")
 
     logs = (
-        await db.execute(select(AuditLog).where(AuditLog.actor_user_id == user.id))
-    ).scalars().all()
+        (await db.execute(select(AuditLog).where(AuditLog.actor_user_id == user.id)))
+        .scalars()
+        .all()
+    )
     assert any(log.action == "create" and log.entity_type == "account" for log in logs)
 
 
@@ -144,6 +148,8 @@ async def test_delete_account_writes_audit_log(db: AsyncSession) -> None:
     await svc.delete(account_id=account.id, user_id=user.id)
 
     logs = (
-        await db.execute(select(AuditLog).where(AuditLog.actor_user_id == user.id))
-    ).scalars().all()
+        (await db.execute(select(AuditLog).where(AuditLog.actor_user_id == user.id)))
+        .scalars()
+        .all()
+    )
     assert any(log.action == "delete" and log.entity_type == "account" for log in logs)

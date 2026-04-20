@@ -5,8 +5,6 @@ All tests run against the anonymised fixture file — no DB, no network.
 
 from pathlib import Path
 
-import pytest
-
 FIXTURE = Path("tests/fixtures/MediobancaPremier_anonimized.xlsx")
 NOT_A_MEDIOBANCA_FILE = Path("tests/fixtures/.gitkeep")
 
@@ -113,7 +111,9 @@ def test_parse_booking_date_is_none_or_datetime():
     from datetime import datetime
 
     txs = _make_parser().parse(FIXTURE, account_id=1)
-    assert all(t.booking_date is None or isinstance(t.booking_date, datetime) for t in txs)
+    assert all(
+        t.booking_date is None or isinstance(t.booking_date, datetime) for t in txs
+    )
 
 
 def test_parse_first_transaction_value_date():
@@ -170,7 +170,9 @@ def test_parse_salary_transaction_type():
 def test_parse_pagam_pos_merchant_extracted():
     """'Pagam. POS - PAGAMENTO POS ... A (ITA) TRENITALIA - PT WL  CARTA...' → 'TRENITALIA - PT WL'"""
     txs = _make_parser().parse(FIXTURE, account_id=1)
-    trenitalia = [t for t in txs if t.merchant_clean and "TRENITALIA" in t.merchant_clean]
+    trenitalia = [
+        t for t in txs if t.merchant_clean and "TRENITALIA" in t.merchant_clean
+    ]
     assert len(trenitalia) > 0
 
 
@@ -209,7 +211,9 @@ def test_parse_hash_is_sha256_hex():
 def test_parse_hashes_are_unique_within_file():
     txs = _make_parser().parse(FIXTURE, account_id=1)
     hashes = [t.hash for t in txs]
-    assert len(hashes) == len(set(hashes)), "Duplicate hashes found within a single import"
+    assert len(hashes) == len(set(hashes)), (
+        "Duplicate hashes found within a single import"
+    )
 
 
 def test_parse_is_idempotent():

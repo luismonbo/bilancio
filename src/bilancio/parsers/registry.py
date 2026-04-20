@@ -14,4 +14,4 @@ def default_parsers() -> list[BankParser]:
     is provided.  Kept as a factory (not a module-level constant) so each
     service instance gets independent objects and tests can inject fakes.
     """
-    return [MediobancaPremierParser()]  # type: ignore[list-item]
+    return [MediobancaPremierParser()]

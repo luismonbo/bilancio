@@ -4,7 +4,7 @@ POST /setup creates the first user and returns a one-time plain API token.
 Once any user exists the endpoint returns 409 Conflict.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -19,7 +19,7 @@ router = APIRouter(tags=["setup"])
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class SetupCreate(BaseModel):

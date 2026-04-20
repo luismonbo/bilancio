@@ -1,7 +1,7 @@
 """Integration tests for TransactionService."""
 
 import hashlib
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import select
@@ -12,7 +12,7 @@ from bilancio.storage.models import Account, AuditLog, Transaction, User
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _make_hash(seed: str) -> str:
@@ -29,8 +29,11 @@ async def _make_user(db: AsyncSession, email: str) -> User:
 
 async def _make_account(db: AsyncSession, user_id: int) -> Account:
     account = Account(
-        user_id=user_id, name="Checking", bank="TestBank",
-        currency="EUR", created_at=_now(),
+        user_id=user_id,
+        name="Checking",
+        bank="TestBank",
+        currency="EUR",
+        created_at=_now(),
     )
     db.add(account)
     await db.commit()
@@ -209,9 +212,13 @@ async def test_update_writes_audit_log(db: AsyncSession) -> None:
     await svc.update(transaction_id=tx.id, user_id=user.id, category="Food")
 
     logs = (
-        await db.execute(select(AuditLog).where(AuditLog.actor_user_id == user.id))
-    ).scalars().all()
-    assert any(log.action == "update" and log.entity_type == "transaction" for log in logs)
+        (await db.execute(select(AuditLog).where(AuditLog.actor_user_id == user.id)))
+        .scalars()
+        .all()
+    )
+    assert any(
+        log.action == "update" and log.entity_type == "transaction" for log in logs
+    )
 
 
 async def test_update_not_owned_raises(db: AsyncSession) -> None:

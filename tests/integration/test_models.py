@@ -1,25 +1,23 @@
 """Integration tests: verify the ORM models map correctly to the schema."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
-from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bilancio.storage.models import (
     Account,
-    ApiToken,
     AuditLog,
-    Category,
     CategorizationRule,
+    Category,
     Transaction,
     User,
 )
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 async def test_create_user(db: AsyncSession) -> None:
@@ -107,13 +105,37 @@ async def test_same_hash_allowed_across_accounts(db: AsyncSession) -> None:
     db.add(user)
     await db.commit()
 
-    acc_a = Account(user_id=user.id, name="A", bank="Test", currency="EUR", created_at=_now())
-    acc_b = Account(user_id=user.id, name="B", bank="Test", currency="EUR", created_at=_now())
+    acc_a = Account(
+        user_id=user.id, name="A", bank="Test", currency="EUR", created_at=_now()
+    )
+    acc_b = Account(
+        user_id=user.id, name="B", bank="Test", currency="EUR", created_at=_now()
+    )
     db.add_all([acc_a, acc_b])
     await db.commit()
 
-    db.add(Transaction(user_id=user.id, account_id=acc_a.id, value_date=_now(), amount=-1, currency="EUR", hash="shared", imported_at=_now()))
-    db.add(Transaction(user_id=user.id, account_id=acc_b.id, value_date=_now(), amount=-1, currency="EUR", hash="shared", imported_at=_now()))
+    db.add(
+        Transaction(
+            user_id=user.id,
+            account_id=acc_a.id,
+            value_date=_now(),
+            amount=-1,
+            currency="EUR",
+            hash="shared",
+            imported_at=_now(),
+        )
+    )
+    db.add(
+        Transaction(
+            user_id=user.id,
+            account_id=acc_b.id,
+            value_date=_now(),
+            amount=-1,
+            currency="EUR",
+            hash="shared",
+            imported_at=_now(),
+        )
+    )
     await db.commit()  # must not raise
 
 
@@ -148,7 +170,9 @@ async def test_category_hierarchy(db: AsyncSession) -> None:
     db.add(parent)
     await db.commit()
 
-    child = Category(user_id=user.id, name="Restaurants", parent_id=parent.id, color="#ff8888")
+    child = Category(
+        user_id=user.id, name="Restaurants", parent_id=parent.id, color="#ff8888"
+    )
     db.add(child)
     await db.commit()
     await db.refresh(child)

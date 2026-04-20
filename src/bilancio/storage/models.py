@@ -12,12 +12,12 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     DateTime,
     ForeignKey,
     Index,
     Integer,
-    JSON,
     Numeric,
     String,
     Text,
@@ -36,10 +36,16 @@ class User(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     display_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    disabled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    disabled_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
-    tokens: Mapped[list["ApiToken"]] = relationship(back_populates="user", lazy="selectin")
+    tokens: Mapped[list["ApiToken"]] = relationship(
+        back_populates="user", lazy="selectin"
+    )
     accounts: Mapped[list["Account"]] = relationship(back_populates="user")
 
 
@@ -47,12 +53,20 @@ class ApiToken(Base):
     __tablename__ = "api_tokens"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=False
+    )
     token_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    last_used_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    revoked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     user: Mapped["User"] = relationship(back_populates="tokens")
 
@@ -63,11 +77,15 @@ class Account(Base):
     __tablename__ = "accounts"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=False
+    )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     bank: Mapped[str] = mapped_column(String(255), nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="EUR")
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
 
     user: Mapped["User"] = relationship(back_populates="accounts")
     transactions: Mapped[list["Transaction"]] = relationship(back_populates="account")
@@ -79,12 +97,22 @@ class Transaction(Base):
     __tablename__ = "transactions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
-    account_id: Mapped[int] = mapped_column(Integer, ForeignKey("accounts.id"), nullable=False)
-    booking_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    value_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=False
+    )
+    account_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("accounts.id"), nullable=False
+    )
+    booking_date: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    value_date: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     # Signed: negative = outflow, positive = inflow
-    amount: Mapped[float] = mapped_column(Numeric(precision=18, scale=4), nullable=False)
+    amount: Mapped[float] = mapped_column(
+        Numeric(precision=18, scale=4), nullable=False
+    )
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="EUR")
     transaction_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
     description_raw: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -95,7 +123,9 @@ class Transaction(Base):
     is_recurring: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     source_file: Mapped[str | None] = mapped_column(String(500), nullable=True)
     source_row: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    imported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    imported_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     # SHA-256 hex digest of (account_id, value_date, amount, description_raw)
     hash: Mapped[str] = mapped_column(String(64), nullable=False)
     user_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -113,7 +143,9 @@ class CategorizationRule(Base):
     __tablename__ = "categorization_rules"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=False
+    )
     # pattern_type ∈ {contains, regex, exact, starts_with} — validated at Pydantic layer
     pattern: Mapped[str] = mapped_column(String(500), nullable=False)
     pattern_type: Mapped[str] = mapped_column(String(50), nullable=False)
@@ -121,7 +153,9 @@ class CategorizationRule(Base):
     subcategory: Mapped[str | None] = mapped_column(String(255), nullable=True)
     priority: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     # "user" | "agent" — who created the rule
     created_by: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
@@ -132,7 +166,9 @@ class Category(Base):
     __tablename__ = "categories"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=False
+    )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     parent_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("categories.id"), nullable=True

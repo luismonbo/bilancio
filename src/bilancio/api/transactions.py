@@ -86,7 +86,9 @@ async def get_transaction(
     try:
         tx = await svc.get(transaction_id=transaction_id, user_id=current_user.id)
     except ValueError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found"
+        ) from None
     return TransactionRead.model_validate(tx)
 
 
@@ -109,5 +111,7 @@ async def update_transaction(
             user_notes=payload.user_notes,
         )
     except ValueError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found"
+        ) from None
     return TransactionRead.model_validate(tx)

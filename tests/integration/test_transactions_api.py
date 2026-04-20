@@ -1,7 +1,7 @@
 """Integration tests for /transactions API routes."""
 
 import hashlib
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,7 +10,7 @@ from bilancio.storage.models import Account, Transaction
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _make_hash(seed: str) -> str:
@@ -64,9 +64,7 @@ async def test_list_transactions_requires_auth(auth_client: AsyncClient) -> None
     assert response.status_code == 401
 
 
-async def test_list_transactions_empty(
-    auth_client: AsyncClient, authed: tuple
-) -> None:
+async def test_list_transactions_empty(auth_client: AsyncClient, authed: tuple) -> None:
     _, headers = authed
     response = await auth_client.get("/transactions", headers=headers)
     assert response.status_code == 200
@@ -124,13 +122,19 @@ async def test_list_transactions_only_own(
 
     # Stranger transaction — different user_id
     stranger_id = user.id + 3000
-    db.add(Account(
-        user_id=stranger_id, name="S", bank="B", currency="EUR", created_at=_now()
-    ))
+    db.add(
+        Account(
+            user_id=stranger_id, name="S", bank="B", currency="EUR", created_at=_now()
+        )
+    )
     await db.flush()
-    stranger_acc = (await db.execute(
-        __import__("sqlalchemy").select(Account).where(Account.user_id == stranger_id)
-    )).scalar_one()
+    stranger_acc = (
+        await db.execute(
+            __import__("sqlalchemy")
+            .select(Account)
+            .where(Account.user_id == stranger_id)
+        )
+    ).scalar_one()
     await _seed_transaction(db, stranger_id, stranger_acc.id, "txapi_stranger")
 
     response = await auth_client.get("/transactions", headers=headers)

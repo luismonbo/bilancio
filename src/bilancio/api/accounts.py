@@ -76,7 +76,9 @@ async def get_account(
     try:
         account = await svc.get(account_id=account_id, user_id=current_user.id)
     except ValueError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Account not found"
+        ) from None
     return AccountRead.model_validate(account)
 
 
@@ -90,4 +92,6 @@ async def delete_account(
     try:
         await svc.delete(account_id=account_id, user_id=current_user.id)
     except ValueError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Account not found"
+        ) from None

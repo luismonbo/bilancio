@@ -38,9 +38,8 @@ class RuleCreate(BaseModel):
     @classmethod
     def validate_pattern_type(cls, v: str) -> str:
         if v not in _VALID_PATTERN_TYPES:
-            raise ValueError(
-                f"Invalid pattern_type {v!r}. Must be one of: {sorted(_VALID_PATTERN_TYPES)}"
-            )
+            valid = sorted(_VALID_PATTERN_TYPES)
+            raise ValueError(f"Invalid pattern_type {v!r}. Must be one of: {valid}")
         return v
 
 
@@ -56,9 +55,8 @@ class RuleUpdate(BaseModel):
     @classmethod
     def validate_pattern_type(cls, v: str | None) -> str | None:
         if v is not None and v not in _VALID_PATTERN_TYPES:
-            raise ValueError(
-                f"Invalid pattern_type {v!r}. Must be one of: {sorted(_VALID_PATTERN_TYPES)}"
-            )
+            valid = sorted(_VALID_PATTERN_TYPES)
+            raise ValueError(f"Invalid pattern_type {v!r}. Must be one of: {valid}")
         return v
 
 
@@ -107,7 +105,9 @@ async def import_rules(
     try:
         count = await svc.import_yaml(user_id=current_user.id, yaml_text=yaml_text)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
+        ) from exc
     return RulesImportRead(imported=count)
 
 
@@ -149,7 +149,9 @@ async def get_rule(
     try:
         rule = await svc.get(rule_id=rule_id, user_id=current_user.id)
     except ValueError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rule not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Rule not found"
+        ) from None
     return RuleRead.model_validate(rule)
 
 
@@ -173,7 +175,9 @@ async def update_rule(
             enabled=payload.enabled,
         )
     except ValueError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rule not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Rule not found"
+        ) from None
     return RuleRead.model_validate(rule)
 
 
@@ -187,4 +191,6 @@ async def delete_rule(
     try:
         await svc.delete(rule_id=rule_id, user_id=current_user.id)
     except ValueError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rule not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Rule not found"
+        ) from None

@@ -1,9 +1,8 @@
 """Integration test fixtures — spin up a fresh SQLite in-memory DB per session."""
 
 import secrets
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -12,7 +11,7 @@ TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 @pytest_asyncio.fixture(scope="session")

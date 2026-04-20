@@ -1,10 +1,9 @@
 """Integration tests for /accounts API routes."""
 
+from datetime import UTC
+
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from bilancio.storage.models import User
-
 
 # ---------------------------------------------------------------------------
 # GET /accounts
@@ -46,7 +45,8 @@ async def test_list_accounts_only_returns_own(
     auth_client: AsyncClient, authed: tuple, db: AsyncSession
 ) -> None:
     """Accounts belonging to another user must not appear."""
-    from datetime import datetime, timezone
+    from datetime import datetime
+
     from bilancio.storage.models import Account
 
     user, headers = authed
@@ -62,7 +62,7 @@ async def test_list_accounts_only_returns_own(
             name="Stranger",
             bank="B",
             currency="EUR",
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
     )
     await db.commit()
@@ -98,9 +98,7 @@ async def test_create_account_missing_name_returns_422(
     auth_client: AsyncClient, authed: tuple
 ) -> None:
     _, headers = authed
-    response = await auth_client.post(
-        "/accounts", json={"bank": "B"}, headers=headers
-    )
+    response = await auth_client.post("/accounts", json={"bank": "B"}, headers=headers)
     assert response.status_code == 422
 
 
@@ -136,20 +134,26 @@ async def test_get_account_not_found(auth_client: AsyncClient, authed: tuple) ->
 async def test_get_account_not_owned_returns_404(
     auth_client: AsyncClient, authed: tuple, db: AsyncSession
 ) -> None:
-    from datetime import datetime, timezone
+    from datetime import datetime
+
     from bilancio.storage.models import Account
 
     user, headers = authed
     stranger_id = user.id + 2000
     stranger_account = Account(
-        user_id=stranger_id, name="NotMine", bank="B",
-        currency="EUR", created_at=datetime.now(timezone.utc),
+        user_id=stranger_id,
+        name="NotMine",
+        bank="B",
+        currency="EUR",
+        created_at=datetime.now(UTC),
     )
     db.add(stranger_account)
     await db.commit()
     await db.refresh(stranger_account)
 
-    response = await auth_client.get(f"/accounts/{stranger_account.id}", headers=headers)
+    response = await auth_client.get(
+        f"/accounts/{stranger_account.id}", headers=headers
+    )
     assert response.status_code == 404
 
 

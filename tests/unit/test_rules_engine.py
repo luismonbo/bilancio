@@ -1,14 +1,15 @@
 """Unit tests for the rules engine — no DB, no network."""
 
-import pytest
+from datetime import UTC
 
 from bilancio.categorizer.rules_engine import RuleMatch, apply_rules
 from bilancio.storage.models import CategorizationRule
 
 
 def _now():
-    from datetime import datetime, timezone
-    return datetime.now(timezone.utc)
+    from datetime import datetime
+
+    return datetime.now(UTC)
 
 
 def _rule(
@@ -134,8 +135,12 @@ def test_disabled_rule_is_skipped():
 
 
 def test_disabled_rule_does_not_shadow_enabled_rule():
-    disabled = _rule("ILIAD", "contains", "Wrong", enabled=False, priority=99, rule_id=1)
-    enabled = _rule("ILIAD", "contains", "Utilities", enabled=True, priority=1, rule_id=2)
+    disabled = _rule(
+        "ILIAD", "contains", "Wrong", enabled=False, priority=99, rule_id=1
+    )
+    enabled = _rule(
+        "ILIAD", "contains", "Utilities", enabled=True, priority=1, rule_id=2
+    )
     result = apply_rules("ILIAD", [disabled, enabled])
     assert result is not None
     assert result.category == "Utilities"

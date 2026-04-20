@@ -52,7 +52,9 @@ async def import_file(
     try:
         await account_svc.get(account_id=account_id, user_id=current_user.id)
     except ValueError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Account not found"
+        ) from None
 
     # Save the upload to a temp file so the parser can use Path-based detection.
     suffix = Path(file.filename or "upload").suffix or ".bin"
@@ -72,7 +74,7 @@ async def import_file(
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
-        )
+        ) from exc
     finally:
         tmp_path.unlink(missing_ok=True)
 

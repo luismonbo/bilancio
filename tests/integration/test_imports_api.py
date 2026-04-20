@@ -5,9 +5,9 @@ from pathlib import Path
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bilancio.storage.models import Transaction
-
-_FIXTURE = Path(__file__).parent.parent / "fixtures" / "MediobancaPremier_anonimized.xlsx"
+_FIXTURE = (
+    Path(__file__).parent.parent / "fixtures" / "MediobancaPremier_anonimized.xlsx"
+)
 
 
 async def _create_account(auth_client: AsyncClient, headers: dict) -> dict:
@@ -60,7 +60,13 @@ async def test_import_real_file_creates_transactions(
     with open(_FIXTURE, "rb") as f:
         response = await auth_client.post(
             f"/accounts/{account['id']}/import",
-            files={"file": ("MediobancaPremier_anonimized.xlsx", f, "application/octet-stream")},
+            files={
+                "file": (
+                    "MediobancaPremier_anonimized.xlsx",
+                    f,
+                    "application/octet-stream",
+                )
+            },
             headers=headers,
         )
 
@@ -70,9 +76,7 @@ async def test_import_real_file_creates_transactions(
     assert body["skipped"] == 0
 
 
-async def test_import_idempotent(
-    auth_client: AsyncClient, authed: tuple
-) -> None:
+async def test_import_idempotent(auth_client: AsyncClient, authed: tuple) -> None:
     """Second import of the same file must report all as skipped."""
     user, headers = authed
     account = await _create_account(auth_client, headers)
@@ -81,7 +85,13 @@ async def test_import_idempotent(
         with open(_FIXTURE, "rb") as f:
             response = await auth_client.post(
                 f"/accounts/{account['id']}/import",
-                files={"file": ("MediobancaPremier_anonimized.xlsx", f, "application/octet-stream")},
+                files={
+                    "file": (
+                        "MediobancaPremier_anonimized.xlsx",
+                        f,
+                        "application/octet-stream",
+                    )
+                },
                 headers=headers,
             )
 

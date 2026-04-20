@@ -3,7 +3,8 @@
 Every mutation writes a row to audit_log.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,10 +13,10 @@ from bilancio.storage.models import Account, AuditLog
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
-def _account_snapshot(account: Account) -> dict:
+def _account_snapshot(account: Account) -> dict[str, Any]:
     return {
         "name": account.name,
         "bank": account.bank,
@@ -34,9 +35,7 @@ class AccountService:
     async def list_accounts(self, user_id: int) -> list[Account]:
         """Return all accounts for a user, ordered by name."""
         result = await self._db.execute(
-            select(Account)
-            .where(Account.user_id == user_id)
-            .order_by(Account.name)
+            select(Account).where(Account.user_id == user_id).order_by(Account.name)
         )
         return list(result.scalars().all())
 
@@ -74,15 +73,17 @@ class AccountService:
         self._db.add(account)
         await self._db.flush()
 
-        self._db.add(AuditLog(
-            timestamp=_now(),
-            actor_user_id=user_id,
-            action="create",
-            entity_type="account",
-            entity_id=account.id,
-            before_state=None,
-            after_state=_account_snapshot(account),
-        ))
+        self._db.add(
+            AuditLog(
+                timestamp=_now(),
+                actor_user_id=user_id,
+                action="create",
+                entity_type="account",
+                entity_id=account.id,
+                before_state=None,
+                after_state=_account_snapshot(account),
+            )
+        )
         await self._db.commit()
         await self._db.refresh(account)
         return account
@@ -91,14 +92,16 @@ class AccountService:
         account = await self.get(account_id=account_id, user_id=user_id)
         before = _account_snapshot(account)
 
-        self._db.add(AuditLog(
-            timestamp=_now(),
-            actor_user_id=user_id,
-            action="delete",
-            entity_type="account",
-            entity_id=account.id,
-            before_state=before,
-            after_state=None,
-        ))
+        self._db.add(
+            AuditLog(
+                timestamp=_now(),
+                actor_user_id=user_id,
+                action="delete",
+                entity_type="account",
+                entity_id=account.id,
+                before_state=before,
+                after_state=None,
+            )
+        )
         await self._db.delete(account)
         await self._db.commit()

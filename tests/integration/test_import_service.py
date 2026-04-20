@@ -4,7 +4,7 @@ Pipeline:  detect → parse → dedup → categorize → store → audit
 """
 
 import hashlib
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -13,8 +13,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bilancio.parsers.base import BankParser, ParsedTransaction
 from bilancio.services.import_service import ImportService, ImportSummary
-from bilancio.storage.models import Account, AuditLog, CategorizationRule, Transaction, User
-
+from bilancio.storage.models import (
+    Account,
+    AuditLog,
+    CategorizationRule,
+    Transaction,
+    User,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -22,7 +27,7 @@ from bilancio.storage.models import Account, AuditLog, CategorizationRule, Trans
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _make_hash(seed: str) -> str:
@@ -136,10 +141,14 @@ async def test_import_creates_transactions(db: AsyncSession) -> None:
     await svc.import_file(file_path=_FAKE_PATH, account_id=account.id, user_id=user.id)
 
     rows = (
-        await db.execute(
-            select(Transaction).where(Transaction.account_id == account.id)
+        (
+            await db.execute(
+                select(Transaction).where(Transaction.account_id == account.id)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(rows) == 2
 
 
@@ -205,7 +214,11 @@ async def test_import_partial_dedup(db: AsyncSession) -> None:
     await svc.import_file(file_path=_FAKE_PATH, account_id=account.id, user_id=user.id)
 
     # Second import: p1 and p2 are duplicates; p3 is new
-    batch2 = [_ptx(account.id, seed="p1"), _ptx(account.id, seed="p2"), _ptx(account.id, seed="p3")]
+    batch2 = [
+        _ptx(account.id, seed="p1"),
+        _ptx(account.id, seed="p2"),
+        _ptx(account.id, seed="p3"),
+    ]
     svc2 = ImportService(db, parsers=[_FakeParser(batch2)])
     result = await svc2.import_file(
         file_path=_FAKE_PATH, account_id=account.id, user_id=user.id
@@ -280,7 +293,9 @@ async def test_import_no_rule_match_leaves_category_null(db: AsyncSession) -> No
     assert row.subcategory is None
 
 
-async def test_import_prefers_merchant_clean_over_description_raw(db: AsyncSession) -> None:
+async def test_import_prefers_merchant_clean_over_description_raw(
+    db: AsyncSession,
+) -> None:
     """Rules must be applied against merchant_clean when present."""
     user = await _make_user(db, "merchant_pref@example.com")
     account = await _make_account(db, user.id)
@@ -372,10 +387,10 @@ async def test_import_writes_audit_log(db: AsyncSession) -> None:
     await svc.import_file(file_path=_FAKE_PATH, account_id=account.id, user_id=user.id)
 
     logs = (
-        await db.execute(
-            select(AuditLog).where(AuditLog.actor_user_id == user.id)
-        )
-    ).scalars().all()
+        (await db.execute(select(AuditLog).where(AuditLog.actor_user_id == user.id)))
+        .scalars()
+        .all()
+    )
     assert any(log.action == "import" and log.entity_type == "account" for log in logs)
 
 
@@ -414,8 +429,12 @@ async def test_import_sets_user_id_on_transactions(db: AsyncSession) -> None:
     await svc.import_file(file_path=_FAKE_PATH, account_id=account.id, user_id=user.id)
 
     rows = (
-        await db.execute(
-            select(Transaction).where(Transaction.account_id == account.id)
+        (
+            await db.execute(
+                select(Transaction).where(Transaction.account_id == account.id)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert all(r.user_id == user.id for r in rows)

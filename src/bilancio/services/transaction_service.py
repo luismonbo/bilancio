@@ -7,7 +7,8 @@ operations: filtering the list, fetching a single row, and manual edits
 Every mutation writes a row to audit_log.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,10 +17,10 @@ from bilancio.storage.models import AuditLog, Transaction
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
-def _transaction_snapshot(tx: Transaction) -> dict:
+def _transaction_snapshot(tx: Transaction) -> dict[str, Any]:
     return {
         "category": tx.category,
         "subcategory": tx.subcategory,
@@ -111,15 +112,17 @@ class TransactionService:
         if user_notes is not None:
             tx.user_notes = user_notes
 
-        self._db.add(AuditLog(
-            timestamp=_now(),
-            actor_user_id=user_id,
-            action="update",
-            entity_type="transaction",
-            entity_id=tx.id,
-            before_state=before,
-            after_state=_transaction_snapshot(tx),
-        ))
+        self._db.add(
+            AuditLog(
+                timestamp=_now(),
+                actor_user_id=user_id,
+                action="update",
+                entity_type="transaction",
+                entity_id=tx.id,
+                before_state=before,
+                after_state=_transaction_snapshot(tx),
+            )
+        )
         await self._db.commit()
         await self._db.refresh(tx)
         return tx

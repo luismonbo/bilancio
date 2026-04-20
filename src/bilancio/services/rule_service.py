@@ -4,7 +4,8 @@ Every mutation writes a row to audit_log. No route or parser should call
 this service's write methods — only ImportService and API routes may do so.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Any
 
 import yaml
 from sqlalchemy import select
@@ -16,7 +17,7 @@ _VALID_PATTERN_TYPES = {"contains", "exact", "starts_with", "regex"}
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class RuleService:
@@ -79,15 +80,17 @@ class RuleService:
         self._db.add(rule)
         await self._db.flush()  # populate rule.id before audit log
 
-        self._db.add(AuditLog(
-            timestamp=_now(),
-            actor_user_id=user_id,
-            action="create",
-            entity_type="categorization_rule",
-            entity_id=rule.id,
-            before_state=None,
-            after_state=_rule_snapshot(rule),
-        ))
+        self._db.add(
+            AuditLog(
+                timestamp=_now(),
+                actor_user_id=user_id,
+                action="create",
+                entity_type="categorization_rule",
+                entity_id=rule.id,
+                before_state=None,
+                after_state=_rule_snapshot(rule),
+            )
+        )
         await self._db.commit()
         await self._db.refresh(rule)
         return rule
@@ -121,15 +124,17 @@ class RuleService:
         if enabled is not None:
             rule.enabled = enabled
 
-        self._db.add(AuditLog(
-            timestamp=_now(),
-            actor_user_id=user_id,
-            action="update",
-            entity_type="categorization_rule",
-            entity_id=rule.id,
-            before_state=before,
-            after_state=_rule_snapshot(rule),
-        ))
+        self._db.add(
+            AuditLog(
+                timestamp=_now(),
+                actor_user_id=user_id,
+                action="update",
+                entity_type="categorization_rule",
+                entity_id=rule.id,
+                before_state=before,
+                after_state=_rule_snapshot(rule),
+            )
+        )
         await self._db.commit()
         await self._db.refresh(rule)
         return rule
@@ -138,15 +143,17 @@ class RuleService:
         rule = await self.get(rule_id, user_id)
         before = _rule_snapshot(rule)
 
-        self._db.add(AuditLog(
-            timestamp=_now(),
-            actor_user_id=user_id,
-            action="delete",
-            entity_type="categorization_rule",
-            entity_id=rule.id,
-            before_state=before,
-            after_state=None,
-        ))
+        self._db.add(
+            AuditLog(
+                timestamp=_now(),
+                actor_user_id=user_id,
+                action="delete",
+                entity_type="categorization_rule",
+                entity_id=rule.id,
+                before_state=before,
+                after_state=None,
+            )
+        )
         await self._db.delete(rule)
         await self._db.commit()
 
@@ -178,7 +185,7 @@ class RuleService:
         Raises ValueError for any rule with an invalid pattern_type.
         """
         data = yaml.safe_load(yaml_text)
-        raw_rules: list[dict] = data.get("rules", [])
+        raw_rules: list[dict[str, Any]] = data.get("rules", [])
 
         # Validate all before writing any
         for entry in raw_rules:
@@ -206,6 +213,7 @@ class RuleService:
 # Helpers
 # ------------------------------------------------------------------
 
+
 def _validate_pattern_type(pattern_type: str) -> None:
     if pattern_type not in _VALID_PATTERN_TYPES:
         raise ValueError(
@@ -214,7 +222,7 @@ def _validate_pattern_type(pattern_type: str) -> None:
         )
 
 
-def _rule_snapshot(rule: CategorizationRule) -> dict:
+def _rule_snapshot(rule: CategorizationRule) -> dict[str, Any]:
     return {
         "pattern": rule.pattern,
         "pattern_type": rule.pattern_type,

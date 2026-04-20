@@ -16,7 +16,7 @@ Every import writes an audit_log row — no exceptions.
 """
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from sqlalchemy import select
@@ -28,7 +28,7 @@ from bilancio.storage.models import AuditLog, CategorizationRule, Transaction
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 @dataclass
@@ -36,7 +36,7 @@ class ImportSummary:
     """Counts returned after a successful import run."""
 
     added: int
-    skipped: int       # duplicate (account_id, hash) already present
+    skipped: int  # duplicate (account_id, hash) already present
     needs_review: int  # added but no categorization rule matched
 
 
@@ -51,6 +51,7 @@ class ImportService:
             self._parsers: list[BankParser] = parsers
         else:
             from bilancio.parsers.registry import default_parsers
+
             self._parsers = default_parsers()
 
     # ------------------------------------------------------------------
